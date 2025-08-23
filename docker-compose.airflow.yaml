@@ -1,0 +1,111 @@
+services:
+  airflow-db:
+    image: postgres:16
+    container_name: airflow-db
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - iceberg_net
+    volumes:
+      - airflow_db_data:/var/lib/postgresql/data
+
+  airflow-init:
+    image: apache/airflow:2.9.3
+    container_name: airflow-init
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: admin
+      # MinIO pass-through for DAGs (edit if yours changed)
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_BUCKET: demo-bucket
+      MINIO_KEY: minio-root-user
+      MINIO_SECRET: minio-root-password
+    networks:
+      - iceberg_net
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./requirements.txt:/requirements.txt
+#    entrypoint: >
+#      bash -lc "pip install --no-cache-dir -r /requirements.txt && \
+#        airflow db migrate && \
+#        airflow users create \
+#          --username $${_AIRFLOW_WWW_USER_USERNAME} \
+#          --password $${_AIRFLOW_WWW_USER_PASSWORD} \
+#          --firstname Marek \
+#          --lastname C \
+#          --role Admin \
+#          --email you@example.com || true
+#      "
+#
+    entrypoint: >
+      bash -lc "pip install --no-cache-dir -r /requirements.txt && airflow db migrate && airflow users create --username $${_AIRFLOW_WWW_USER_USERNAME} --password $${_AIRFLOW_WWW_USER_PASSWORD} --firstname Marek --lastname C --role Admin --email you@example.com || true"
+
+
+  airflow-scheduler:
+    image: apache/airflow:2.9.3
+    container_name: airflow-scheduler
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_BUCKET: demo-bucket
+      MINIO_KEY: minio-root-user
+      MINIO_SECRET: minio-root-password
+    networks:
+      - iceberg_net
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./requirements.txt:/requirements.txt
+    command: bash -lc "pip install --no-cache-dir -r /requirements.txt && airflow scheduler"
+
+  airflow-webserver:
+    image: apache/airflow:2.9.3
+    container_name: airflow-webserver
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_BUCKET: demo-bucket
+      MINIO_KEY: minio-root-user
+      MINIO_SECRET: minio-root-password
+    command: bash -lc "pip install --no-cache-dir -r /requirements.txt && airflow webserver"
+    ports:
+      - "8080:8080"
+    networks:
+      - iceberg_net
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./requirements.txt:/requirements.txt
+
+#networks:
+#  iceberg_net:
+#    external: true
+
+volumes:
+  airflow_db_data:
+

@@ -1,0 +1,6 @@
+yfinance
+pandas
+pyarrow
+s3fs
+boto3
+
