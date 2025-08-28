@@ -163,6 +163,8 @@ services:
       - "9999:8080"
     networks:
       - iceberg_net
+    volumes:
+      - ./etc/catalog:/etc/trino/catalog
 
   starrocks:
     image: starrocks/allin1-ubuntu:3.3.7
