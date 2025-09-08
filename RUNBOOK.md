@@ -1,80 +1,60 @@
-# RUNBOOK — Clone → Run → Verify
+# OSS Data Lake Test - Runbook
 
-## 0) Prereqs
-- Docker & Docker Compose v2
-- Internet access for Airflow to download Python deps and yfinance data
+## From clean clone to smoke test
 
-## 1) Start stack
 ```bash
+# 0) (if needed) clone + cd
+git clone https://github.com/Marek-Czarnecki/oss-data-lake && cd oss-data-lake/oss-data-lake-test
+
+# 1) ensure clean project state
+docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml down -v --remove-orphans
+docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml config >/dev/null
+
+# 2) start MinIO to prep bucket
+docker compose up -d minio
+
+# 3) create bucket (idempotent) + list buckets
+docker compose exec minio mc alias set local http://minio:9000 minio-root-user minio-root-password
+docker compose exec minio mc ls local/demo-bucket >/dev/null 2>&1 || docker compose exec minio mc mb local/demo-bucket
+docker compose exec minio mc ls local
+
+# 4) bring full stack up
 docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml up -d
-docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml ps
+docker ps --format '{{.Names}}: {{.Status}}' | sort
+
+# 5) register the yfinance warehouse (idempotent) and verify
+curl -s -X POST http://localhost:8181/management/v1/warehouse   -H "Content-Type: application/json"   --data @create-yfinance-warehouse.json
+curl -s http://localhost:8181/management/v1/warehouse
+
+# 6) open Trino CLI (inside container → server is 8080)
+docker compose exec -it trino trino --server http://localhost:8080 --user admin
 ```
 
-## 2) Dependencies in Airflow
+Inside Trino prompt:
+```sql
+SHOW CATALOGS;
+CREATE SCHEMA IF NOT EXISTS iceberg.yf_demo;
+CREATE TABLE IF NOT EXISTS iceberg.yf_demo.smoke (id INT, msg VARCHAR);
+INSERT INTO iceberg.yf_demo.smoke VALUES (1,'ok');
+SELECT * FROM iceberg.yf_demo.smoke;
+```
+
+Back in shell:
 ```bash
-docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml exec airflow-webserver python -m pip install --no-cache-dir -r /requirements.txt
-docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml exec airflow-scheduler  python -m pip install --no-cache-dir -r /requirements.txt
+# 7) confirm Iceberg files landed in MinIO
+docker compose exec minio mc ls -r local/demo-bucket/warehouse | head -n 20
 ```
 
-## 3) Optional: create MinIO bucket if volume is fresh
+---
+
+## Clean shutdown
+
+- **Stop containers (keep data):**
 ```bash
-docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml exec airflow-webserver python - <<'PY'
-import os,boto3
-s3=boto3.client('s3',endpoint_url=os.environ['MINIO_ENDPOINT'],
-                aws_access_key_id=os.environ['MINIO_KEY'],
-                aws_secret_access_key=os.environ['MINIO_SECRET'])
-try:
-    s3.create_bucket(Bucket=os.environ.get('MINIO_BUCKET','demo-bucket'))
-except Exception as e:
-    print(e)
-print("OK")
-PY
+docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml down --remove-orphans
 ```
 
-## 4) Airflow: diagnose and trigger
+- **Full reset (also remove volumes):**
 ```bash
-# Import errors (should be empty)
-docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml exec airflow-webserver airflow dags list-import-errors -o table
-
-# Trigger the demo DAG
-docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml exec airflow-webserver airflow dags trigger yfinance_to_minio
-
-# Tail task logs (adjust attempt number if needed)
-docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml exec airflow-scheduler bash -lc 'tail -n 200 /opt/airflow/logs/dag_id=yfinance_to_minio/*/*/task_id=fetch_write_parquet/attempt=1.log'
+docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml down -v --remove-orphans
 ```
-
-## 5) Verify data landed in MinIO
-```bash
-# Should print HTTP 200
-docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml exec airflow-webserver sh -lc 'curl -sS -o /dev/null -w "%{http_code}\n" http://minio:9000/minio/health/ready'
-
-# List buckets
-docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml exec airflow-webserver python - <<'PY'
-import os,boto3
-s3=boto3.client('s3',endpoint_url=os.environ['MINIO_ENDPOINT'],
-                aws_access_key_id=os.environ['MINIO_KEY'],
-                aws_secret_access_key=os.environ['MINIO_SECRET'])
-print([b['Name'] for b in s3.list_buckets().get('Buckets',[])])
-PY
-
-# List objects in the target bucket
-docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml exec airflow-webserver python - <<'PY'
-import os,boto3
-bucket=os.environ.get('MINIO_BUCKET','demo-bucket')
-s3=boto3.client('s3',endpoint_url=os.environ['MINIO_ENDPOINT'],
-                aws_access_key_id=os.environ['MINIO_KEY'],
-                aws_secret_access_key=os.environ['MINIO_SECRET'])
-r=s3.list_objects_v2(Bucket=bucket, Prefix='finance/yahoo/daily/')
-print([o['Key'] for o in r.get('Contents',[])])
-PY
-```
-
-## 6) Stop / restart
-```bash
-docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml down
-docker compose -f docker-compose.yaml -f docker-compose.airflow.yaml up -d
-```
-
-## Notes
-- Trino SQL shell is intentionally out of scope for this runbook.
-- See the `notebooks/test_airflow_yfinance.ipynb` for a minimal stats check (run locally or via your preferred Jupyter).
