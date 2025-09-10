@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ===== REQUIRED: fill these =====
-: "${DRIVER_URL:?Set DRIVER_URL to the exact .jar download URL}"
-: "${DRIVER_SHA256:?Set DRIVER_SHA256 to the published sha256 for that .jar}"
+DRIVER_URL="https://github.com/starburstdata/metabase-driver/releases/download/6.1.0/starburst-6.1.0.metabase-driver.jar"
+DRIVER_SHA256="dafe626d6edd6de66086cb91b98628b2289b9e538562769ff826d98b2dee3ac5"
 
 DEST_DIR="./metabase-plugins"
-DEST_FILE="${DEST_DIR}/metabase-trino-driver.jar"
+DEST_FILE="${DEST_DIR}/starburst-6.1.0.metabase-driver.jar"
 
 mkdir -p "${DEST_DIR}"
-echo "Downloading driver from: ${DRIVER_URL}"
+echo "Downloading Starburst Metabase driver v6.1.0..."
 curl -L --fail --show-error "${DRIVER_URL}" -o "${DEST_FILE}"
 
-echo "Verifying SHA256..."
+echo "Verifying checksum..."
 echo "${DRIVER_SHA256}  ${DEST_FILE}" | shasum -a 256 -c -
 
-echo "Driver OK: ${DEST_FILE}"
+echo "Driver fetched and verified: ${DEST_FILE}"

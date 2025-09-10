@@ -7,9 +7,11 @@ services:
     environment:
       MB_DB_FILE: /metabase-data/metabase.db
       MB_PLUGINS_DIR: /plugins
+    networks:
+      - iceberg_net
     volumes:
       - metabase-data:/metabase-data
-      - ./metabase-plugins:/plugins
+      - metabase-plugins:/plugins
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000/api/health"]
@@ -22,6 +24,8 @@ services:
     container_name: cloudbeaver
     ports:
       - "8978:8978"
+    networks:
+      - iceberg_net
     volumes:
       - cloudbeaver-workspace:/opt/cloudbeaver/workspace
     restart: unless-stopped
@@ -33,4 +37,5 @@ services:
 
 volumes:
   metabase-data:
+  metabase-plugins:
   cloudbeaver-workspace:
