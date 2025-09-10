@@ -23,3 +23,17 @@ All notable changes for the OSS Data Lake Test environment runbook and setup.
 - Iceberg files confirmed in `demo-bucket/warehouse` via MinIO client.
 
 ---
+
+## [2025-09-10]
+### Added
+- Metabase & CloudBeaver overlay support documented in `RUNBOOK.md`.
+- Helper script usage for Metabase Trino driver: `./scripts/fetch-metabase-trino-driver.sh`.
+
+### Changed
+- Consolidated all prior runbooks into a single `RUNBOOK.md` with end-to-end steps (clone → MinIO → full stack → warehouse → DAG → schema/table → Jupyter ETL → Metabase/CloudBeaver).
+
+### Removed
+- Deprecated runbooks: `RUNBOOK_DAGv2_Trino.md`, `RUNBOOK_Metabase.md`, `RUNBOOK_metabase_cloudbeaver.md`.
+
+### Build/Repo
+- Updated `.gitignore` to exclude JAR files.
