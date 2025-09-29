@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes for the OSS Data Lake Test environment runbook and setup.
+All notable changes for the Open Data Lake Test environment runbook and setup.
 
 ## [Unreleased]
 

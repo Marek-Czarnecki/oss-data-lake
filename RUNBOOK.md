@@ -1,6 +1,6 @@
-# OSS Data Lake — Runbook
+# Open Data Lake — Runbook
 
-This runbook documents the complete sequence to go from a clean clone of the repository to a fully working OSS Data Lake with dashboards in **Metabase** and interactive SQL in **CloudBeaver**.
+This runbook documents the complete sequence to go from a clean clone of the repository to a fully working Open Data Lake with dashboards in **Metabase** and interactive SQL in **CloudBeaver**.
 
 ---
 

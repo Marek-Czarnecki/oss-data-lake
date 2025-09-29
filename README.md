@@ -1,4 +1,4 @@
-# OSS Data Lake (MinIO · Iceberg/Lakekeeper · Trino · Airflow · Jupyter · Metabase · CloudBeaver)
+# Open Data Lake (MinIO · Iceberg/Lakekeeper · Trino · Airflow · Jupyter · Metabase · CloudBeaver)
 
 Lightweight, reproducible, all-open-source data lake you can run locally with Docker Compose.
 This repo lands curated Parquet to MinIO, manages tables with Apache Iceberg (via Lakekeeper REST catalog), queries with Trino, and now adds **Metabase** dashboards and **CloudBeaver** for browser-based SQL exploration.
