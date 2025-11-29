@@ -112,6 +112,15 @@ $COMPOSE down -v --remove-orphans     # full reset
 
 ---
 
+## Git Workflow
+
+- Default branch: `main`; work happens on feature branches (e.g., `feature/...`) with PRs back to `main`.
+- Status check: `git status` should be clean before running stack commands to avoid accidental file churn (especially notebooks).
+- Vendored upstream: Lakekeeper compose is tracked via `UPSTREAM.md`; use `scripts/check-upstream.sh` to diff against an upstream commit before updating `docker-compose.yaml`.
+- Binary artifacts: driver JARs live in `metabase-plugins/` and are ignored by git.
+
+---
+
 ## References and Further Reading
 
 - Full step-by-step: `RUNBOOK.md`
